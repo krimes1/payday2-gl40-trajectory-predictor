@@ -1,0 +1,23 @@
+# Editor and operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
+*.old
+*.orig
+*.rej
+
+# Local game installs and generated captures
+/PAYDAY 2/
+/mods/
+*.dmp
+*.mdmp

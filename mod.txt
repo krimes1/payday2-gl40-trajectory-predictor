@@ -1,7 +1,7 @@
 {
   "name": "GL40 Trajectory Predictor v1.0 (Beta)",
   "description": "Single-stroke trajectory, static geometry detection, and dotted theoretical ground extension after fuse.",
-  "author": "ChatGPT",
+  "author": "krimes1",
   "version": "1.0.0",
   "blt_version": 2,
   "hooks": [
