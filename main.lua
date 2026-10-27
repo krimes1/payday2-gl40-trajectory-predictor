@@ -5,7 +5,9 @@ local tracker = _G.GL40Tracker
 local CFG = {
     speed=2500, gravity=981, drag=0.005, vertical_boost=125,
     fuse=2.0, step=0.0125, muzzle_forward=0, marker_radius=16,
-    recalc_interval=0.04, continuation_step=0.025, continuation_seconds=3.0
+    -- Keep the displayed path closer to the current aim direction while still
+    -- avoiding a full raycast simulation on every rendered frame.
+    recalc_interval=0.02, continuation_step=0.025, continuation_seconds=3.0
 }
 local segments, terminal, distance, state, terminal_type, continuation, ground_point = {}, nil, nil, 'WAIT', nil, {}, nil
 local last_calc=-100
@@ -94,10 +96,17 @@ local function draw_marker(p,r,g,bl)
 end
 local function draw_block(p)
     local d=20
-    draw(p+Vector3(-d,0,-d),p+Vector3(d,0,d),1,0.75,0)
-    draw(p+Vector3(-d,0,d),p+Vector3(d,0,-d),1,0.75,0)
-    draw(p+Vector3(0,-d,-d),p+Vector3(0,d,d),1,0.75,0)
-    draw(p+Vector3(0,-d,d),p+Vector3(0,d,-d),1,0.75,0)
+    local corners={
+        p+Vector3(-d,-d,-d),p+Vector3(d,-d,-d),
+        p+Vector3(d,d,-d),p+Vector3(-d,d,-d),
+        p+Vector3(-d,-d,d),p+Vector3(d,-d,d),
+        p+Vector3(d,d,d),p+Vector3(-d,d,d)
+    }
+    local edges={{1,2},{2,3},{3,4},{4,1},{5,6},{6,7},{7,8},{8,5},
+                 {1,5},{2,6},{3,7},{4,8}}
+    for i=1,#edges do
+        draw(corners[edges[i][1]],corners[edges[i][2]],1,0.75,0)
+    end
 end
 
 local function update(self,t)
