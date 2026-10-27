@@ -6,8 +6,8 @@ local CFG = {
     speed=2500, gravity=981, drag=0.005, vertical_boost=125,
     fuse=2.0, step=0.0125, muzzle_forward=0, marker_radius=16,
     recalc_interval=0.04, continuation_step=0.025, continuation_seconds=3.0,
-    -- Opt-in, rate-limited path endpoint diagnostics for in-game reproduction.
-    debug_path=false
+    -- Temporary: emit at most one compact path diagnostic per second.
+    debug_path=true
 }
 local segments, terminal, distance, state, terminal_type, continuation, ground_point = {}, nil, nil, 'WAIT', nil, {}, nil
 local last_calc=-100
@@ -105,9 +105,10 @@ local function debug_path(t)
     local continuation_segment=continuation_a and
         string.format('%d:%.1f %s->%s',continuation_index,continuation_longest,
             point_text(continuation_a),point_text(continuation_b)) or 'none'
-    log(string.format('[GL40 path] type=%s flight=%d max=%s gap=%.1f continuation=%d max=%s gap=%.1f',
-        tostring(terminal_type or state),count,segment,gap,continuation_count,
-        continuation_segment,continuation_gap))
+    local endpoint=terminal and point_text(terminal) or 'none'
+    log(string.format('[GL40 path] type=%s distance=%s terminal=%s flight=%d max=%s gap=%.1f continuation=%d max=%s gap=%.1f',
+        tostring(terminal_type or state),tostring(distance or 'n/a'),endpoint,
+        count,segment,gap,continuation_count,continuation_segment,continuation_gap))
 end
 
 -- One stroke only. Offset parallel strokes in v0.9 produced visual branches
