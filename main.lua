@@ -5,12 +5,13 @@ local tracker = _G.GL40Tracker
 local CFG = {
     speed=2500, gravity=981, drag=0.005, vertical_boost=125,
     fuse=2.0, step=0.0125, muzzle_forward=0, marker_radius=16,
-    -- Keep the displayed path closer to the current aim direction while still
-    -- avoiding a full raycast simulation on every rendered frame.
-    recalc_interval=0.02, continuation_step=0.025, continuation_seconds=3.0
+    recalc_interval=0.04, continuation_step=0.025, continuation_seconds=3.0,
+    -- Opt-in, rate-limited path endpoint diagnostics for in-game reproduction.
+    debug_path=false
 }
 local segments, terminal, distance, state, terminal_type, continuation, ground_point = {}, nil, nil, 'WAIT', nil, {}, nil
 local last_calc=-100
+local last_debug=-100
 local label
 
 local function hud_label()
@@ -76,6 +77,39 @@ local function predict(origin,forward)
     return lines,fuse_endpoint,(fuse_endpoint-origin):length()/100,'FUSE (estimated)','fuse',projected,ground
 end
 
+local function point_text(p)
+    return string.format('(%.1f,%.1f,%.1f)',p.x,p.y,p.z)
+end
+local function segment_summary(list)
+    local longest,index,start_point,end_point,gap=0,0,nil,nil,0
+    for i=1,#list do
+        local a,b=list[i][1],list[i][2]
+        local length=(b-a):length()
+        if length>longest then
+            longest,index,start_point,end_point=length,i,a,b
+        end
+        if i>1 then
+            local previous_end=list[i-1][2]
+            gap=math.max(gap,(a-previous_end):length())
+        end
+    end
+    return #list,longest,index,start_point,end_point,gap
+end
+local function debug_path(t)
+    if not CFG.debug_path or t-last_debug<1 then return end
+    last_debug=t
+    local count,longest,index,a,b,gap=segment_summary(segments)
+    local continuation_count,continuation_longest,continuation_index,
+        continuation_a,continuation_b,continuation_gap=segment_summary(continuation)
+    local segment=a and string.format('%d:%.1f %s->%s',index,longest,point_text(a),point_text(b)) or 'none'
+    local continuation_segment=continuation_a and
+        string.format('%d:%.1f %s->%s',continuation_index,continuation_longest,
+            point_text(continuation_a),point_text(continuation_b)) or 'none'
+    log(string.format('[GL40 path] type=%s flight=%d max=%s gap=%.1f continuation=%d max=%s gap=%.1f',
+        tostring(terminal_type or state),count,segment,gap,continuation_count,
+        continuation_segment,continuation_gap))
+end
+
 -- One stroke only. Offset parallel strokes in v0.9 produced visual branches
 -- and apparent T-shaped joins. This deliberately preserves the flight maths.
 local function draw(a,b,r,g,bl)
@@ -88,11 +122,11 @@ local function draw_marker(p,r,g,bl)
     for i=0,23 do
         local a=i*math.pi/12
         local b=(i+1)*math.pi/12
-        draw(p+Vector3(radius*math.cos(a),radius*math.sin(a),3),
-             p+Vector3(radius*math.cos(b),radius*math.sin(b),3),r,g,bl)
+        draw(p+Vector3(radius*math.cos(a),radius*math.sin(a),0),
+             p+Vector3(radius*math.cos(b),radius*math.sin(b),0),r,g,bl)
     end
-    draw(p+Vector3(-radius,0,3),p+Vector3(radius,0,3),r,g,bl)
-    draw(p+Vector3(0,-radius,3),p+Vector3(0,radius,3),r,g,bl)
+    draw(p+Vector3(-radius,0,0),p+Vector3(radius,0,0),r,g,bl)
+    draw(p+Vector3(0,-radius,0),p+Vector3(0,radius,0),r,g,bl)
 end
 local function draw_block(p)
     local d=20
@@ -127,6 +161,7 @@ local function update(self,t)
     if t-last_calc>=CFG.recalc_interval then
         last_calc=t
         segments,terminal,distance,state,terminal_type,continuation,ground_point=predict(origin,forward)
+        debug_path(t)
     end
     local known=distance~=nil
     local far=known and distance>=40
